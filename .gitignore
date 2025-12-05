@@ -1,0 +1,129 @@
+# ============================================
+# BASH BOOKKEEPING API - .gitignore
+# ============================================
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv/
+.conda/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# Environment files (IMPORTANT - contains secrets)
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+!env.example
+
+# Testing
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+coverage.xml
+*.cover
+*.py,cover
+nosetests.xml
+
+# Logs
+*.log
+logs/
+log/
+
+# Database
+*.db
+*.sqlite3
+*.sqlite
+
+# Uploads / Temp files (local dev)
+uploads/
+temp/
+tmp/
+*.tmp
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff / Linting
+.ruff_cache/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Celery
+celerybeat-schedule
+celerybeat-schedule.*
+celerybeat.pid
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# pyenv
+.python-version
+
+# Secrets / Credentials (never commit these!)
+*.pem
+*.key
+credentials.json
+service-account.json
+*-credentials.json
+
+# Terraform (if using IaC)
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Misc
+*.bak
+*.backup
+
