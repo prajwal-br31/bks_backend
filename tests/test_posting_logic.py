@@ -395,3 +395,4 @@ def test_post_invoice_balance_validation(db: Session, test_company_id: UUID, sam
     assert total_debit == Decimal("7500.00")
 
 
+

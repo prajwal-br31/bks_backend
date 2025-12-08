@@ -84,3 +84,4 @@ class PostReceiptResponse(BaseModel):
     invoice_status: Optional[InvoiceStatus] = None
 
 
+

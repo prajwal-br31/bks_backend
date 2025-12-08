@@ -225,3 +225,4 @@ def test_classify_transactions_batch(db: Session, sample_bank_file):
     assert transfer_txn.ai_category == "TRANSFER_IN"
 
 
+

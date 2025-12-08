@@ -142,3 +142,4 @@ def test_create_and_post_bill(db: Session, test_company_id: UUID, sample_chart_o
     assert total_debit == Decimal("5000.00")
 
 
+

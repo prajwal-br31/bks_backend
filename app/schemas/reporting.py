@@ -69,3 +69,4 @@ class CashFlowResponse(BaseModel):
     net_change_in_cash: float
 
 
+

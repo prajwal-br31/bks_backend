@@ -142,3 +142,4 @@ def test_create_and_post_invoice(db: Session, test_company_id: UUID, sample_char
     assert total_debit == Decimal("10000.00")
 
 
+
