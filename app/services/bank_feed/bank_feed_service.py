@@ -17,7 +17,7 @@ from app.models.bank_feed import (
     MatchedEntityType,
     FileStatus,
 )
-from app.services.storage import S3StorageService
+from app.services.storage import get_storage_service
 from .csv_parser import get_parser_for_content, ParseResult, ParsedTransaction
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,11 @@ class BankFeedService:
 
     def __init__(self, db: Session):
         self.db = db
-        self.storage = S3StorageService()
+        try:
+            self.storage = get_storage_service()
+        except ValueError as e:
+            logger.warning(f"Storage service not configured: {e}. File storage will be skipped.")
+            self.storage = None
 
     async def process_upload(
         self,
@@ -62,18 +66,35 @@ class BankFeedService:
         self.db.flush()
 
         try:
-            # Upload to S3
-            await self.storage.ensure_bucket_exists()
-            stored = await self.storage.upload_file(
-                content=content,
-                original_filename=filename,
-                content_type=content_type,
-                folder="bank-feeds",
-                metadata={"bank_file_id": str(bank_file.id)},
-            )
+            # Upload to storage (Azure Blob or S3)
+            if self.storage:
+                try:
+                    await self.storage.ensure_bucket_exists()
+                    stored = await self.storage.upload_file(
+                        content=content,
+                        original_filename=filename,
+                        content_type=content_type,
+                        folder="bank-feeds",
+                        metadata={"bank_file_id": str(bank_file.id)},
+                    )
+                    
+                    bank_file.storage_path = stored.key
+                    bank_file.file_hash = stored.content_hash
+                except Exception as e:
+                    # Storage error - use local path for development
+                    logger.warning(f"Storage upload failed, using local path: {e}")
+                    import hashlib
+                    content_hash = hashlib.sha256(content).hexdigest()
+                    bank_file.storage_path = f"local://bank-feeds/{content_hash[:16]}_{filename}"
+                    bank_file.file_hash = content_hash
+            else:
+                # Storage not configured - use local path for development
+                logger.warning("Storage not configured, using local path")
+                import hashlib
+                content_hash = hashlib.sha256(content).hexdigest()
+                bank_file.storage_path = f"local://bank-feeds/{content_hash[:16]}_{filename}"
+                bank_file.file_hash = content_hash
             
-            bank_file.storage_path = stored.key
-            bank_file.file_hash = stored.content_hash
             bank_file.status = FileStatus.PROCESSING
             self.db.commit()
 
@@ -131,6 +152,36 @@ class BankFeedService:
                 bank_file_id=bank_file.id,
             )
             self.db.add(audit)
+            
+            # Trigger classification
+            from app.models.bank_feed import ClassificationStatus
+            from app.tasks.bank_feed_tasks import classify_bank_file
+            
+            classification_threshold = 200  # Use Celery for files with 200+ transactions
+            
+            if len(transaction_ids) >= classification_threshold:
+                # Enqueue Celery job for background classification
+                classify_bank_file.delay(bank_file.id, use_ai=False)
+                bank_file.classification_status = ClassificationStatus.PENDING
+                logger.info(f"Enqueued classification job for file {bank_file.id} ({len(transaction_ids)} transactions)")
+            else:
+                # Classify synchronously for small files
+                from app.services.bank_feed.ai_classifier import classify_transactions_batch
+                try:
+                    classify_transactions_batch(
+                        db=self.db,
+                        transaction_ids=transaction_ids,
+                        use_ai=False,
+                        chunk_size=100,
+                    )
+                    bank_file.classification_status = ClassificationStatus.DONE
+                    bank_file.classification_progress = 100
+                    logger.info(f"Classified {len(transaction_ids)} transactions synchronously for file {bank_file.id}")
+                except Exception as e:
+                    logger.error(f"Error classifying transactions synchronously: {str(e)}")
+                    bank_file.classification_status = ClassificationStatus.FAILED
+                    bank_file.last_classification_error = str(e)
+            
             self.db.commit()
 
             return {
@@ -142,10 +193,14 @@ class BankFeedService:
                 "skipped_rows": result.skipped_rows,
                 "transaction_ids": transaction_ids,
                 "bank_name": result.bank_name,
+                "classification_status": bank_file.classification_status.value,
+                "classification_progress": bank_file.classification_progress,
                 "statement_start": result.statement_start.isoformat() if result.statement_start else None,
                 "statement_end": result.statement_end.isoformat() if result.statement_end else None,
                 "errors": result.errors,
                 "warnings": result.warnings,
+                "classification_status": bank_file.classification_status.value,
+                "classification_progress": bank_file.classification_progress,
             }
 
         except Exception as e:
@@ -167,6 +222,8 @@ class BankFeedService:
         amount_max: Optional[float] = None,
         search: Optional[str] = None,
         file_id: Optional[int] = None,
+        ai_category: Optional[str] = None,
+        classification_status: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Get paginated list of bank transactions with filters.
@@ -207,6 +264,17 @@ class BankFeedService:
         
         if file_id:
             query = query.filter(BankTransaction.bank_file_id == file_id)
+        
+        if ai_category:
+            query = query.filter(BankTransaction.ai_category == ai_category)
+        
+        if classification_status:
+            from app.models.bank_feed import ClassificationStatus
+            try:
+                status_enum = ClassificationStatus(classification_status)
+                query = query.filter(BankTransaction.classification_status == status_enum)
+            except ValueError:
+                pass  # Invalid status, ignore filter
 
         # Get total count
         total = query.count()
@@ -235,6 +303,11 @@ class BankFeedService:
                 "check_number": txn.check_number,
                 "bank_file_id": txn.bank_file_id,
                 "matched_entity": None,
+                "ai_category": txn.ai_category,
+                "ai_subcategory": txn.ai_subcategory,
+                "ai_confidence": txn.ai_confidence,
+                "ai_ledger_hint": txn.ai_ledger_hint,
+                "classification_status": txn.classification_status.value if txn.classification_status else None,
             }
             
             # Include match info if exists
@@ -351,6 +424,10 @@ class BankFeedService:
             raise ValueError(f"File not found: {file_id}")
 
         # Download from S3
+        if not self.storage:
+            raise ValueError("Storage service not configured. Cannot download file.")
+        if bank_file.storage_path.startswith("local://"):
+            raise ValueError("File stored locally, cannot download from storage.")
         content = await self.storage.download_file(bank_file.storage_path)
 
         # Update status
@@ -445,6 +522,39 @@ class BankFeedService:
             .first()
         )
 
+        # Classification stats
+        from app.models.bank_feed import ClassificationStatus
+        classification_counts = (
+            self.db.query(
+                BankTransaction.classification_status,
+                func.count(BankTransaction.id).label("count")
+            )
+            .group_by(BankTransaction.classification_status)
+            .all()
+        )
+        
+        classification_map = {s.value: 0 for s in ClassificationStatus}
+        for status, count in classification_counts:
+            if status:
+                classification_map[status.value] = count
+        
+        # Category totals (optional - can be expensive for large datasets)
+        category_totals = {}
+        try:
+            category_counts = (
+                self.db.query(
+                    BankTransaction.ai_category,
+                    func.count(BankTransaction.id).label("count")
+                )
+                .filter(BankTransaction.ai_category.isnot(None))
+                .group_by(BankTransaction.ai_category)
+                .limit(20)  # Limit to top 20 categories
+                .all()
+            )
+            category_totals = {cat: count for cat, count in category_counts if cat}
+        except Exception as e:
+            logger.warning(f"Error computing category totals: {str(e)}")
+        
         return {
             "imported_this_period": recent_count,
             "unmatched_count": status_map.get("pending", 0),
@@ -453,5 +563,10 @@ class BankFeedService:
             "cleared_count": status_map.get("cleared", 0),
             "last_import": last_file.created_at.isoformat() if last_file else None,
             "last_import_filename": last_file.original_filename if last_file else None,
+            "num_transactions_classified": classification_map.get("DONE", 0),
+            "num_transactions_pending": classification_map.get("PENDING", 0) + classification_map.get("IN_PROGRESS", 0),
+            "totals_by_ai_category": category_totals,
         }
+
+
 

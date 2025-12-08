@@ -49,3 +49,6 @@ class OCRProvider(ABC):
         """Check if the OCR provider is available."""
         pass
 
+
+
+

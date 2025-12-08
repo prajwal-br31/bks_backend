@@ -46,6 +46,13 @@ class FileStatus(str, PyEnum):
     REPROCESSING = "reprocessing"
 
 
+class ClassificationStatus(str, PyEnum):
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    DONE = "DONE"
+    FAILED = "FAILED"
+
+
 class BankFile(Base, TimestampMixin):
     """Uploaded bank statement file."""
     __tablename__ = "bank_files"
@@ -60,7 +67,7 @@ class BankFile(Base, TimestampMixin):
     file_hash = Column(String(64), nullable=True)  # SHA-256
     
     # Processing info
-    status = Column(Enum(FileStatus), default=FileStatus.UPLOADING, nullable=False, index=True)
+    status = Column(Enum(FileStatus, native_enum=False, length=50), default=FileStatus.UPLOADING, nullable=False, index=True)
     error_message = Column(Text, nullable=True)
     
     # Parse results
@@ -76,6 +83,11 @@ class BankFile(Base, TimestampMixin):
     
     # User info
     uploaded_by = Column(String(255), nullable=True)
+    
+    # AI Classification
+    classification_status = Column(Enum(ClassificationStatus, native_enum=False, length=50), default=ClassificationStatus.PENDING, nullable=False)
+    classification_progress = Column(Integer, default=0, nullable=False)  # 0-100
+    last_classification_error = Column(Text, nullable=True)
     
     # Relationships
     transactions = relationship("BankTransaction", back_populates="bank_file", cascade="all, delete-orphan")
@@ -100,7 +112,7 @@ class BankTransaction(Base, TimestampMixin):
     post_date = Column(DateTime, nullable=True)
     description = Column(Text, nullable=False)
     amount = Column(Float, nullable=False)
-    type = Column(Enum(TransactionType), nullable=False)
+    type = Column(Enum(TransactionType, native_enum=False, length=50), nullable=False)
     balance = Column(Float, nullable=True)
     
     # Categorization
@@ -109,7 +121,14 @@ class BankTransaction(Base, TimestampMixin):
     check_number = Column(String(50), nullable=True)
     
     # Status
-    status = Column(Enum(TransactionStatus), default=TransactionStatus.PENDING, nullable=False, index=True)
+    status = Column(Enum(TransactionStatus, native_enum=False, length=50), default=TransactionStatus.PENDING, nullable=False, index=True)
+    
+    # AI Classification
+    ai_category = Column(String(100), nullable=True)  # e.g. "BANK_FEE", "CARD_PAYMENT", "VENDOR_PAYMENT"
+    ai_subcategory = Column(String(200), nullable=True)  # e.g. "BacklotCars - Auto Purchase"
+    ai_confidence = Column(Float, nullable=True)  # 0.0 to 1.0
+    ai_ledger_hint = Column(String(50), nullable=True)  # e.g. "OPERATING_EXPENSE", "OWNER_DRAW"
+    classification_status = Column(Enum(ClassificationStatus, native_enum=False, length=50), default=ClassificationStatus.PENDING, nullable=False, index=True)
     
     # Raw data
     raw_data = Column(JSON, nullable=True)  # Original row data
@@ -133,7 +152,7 @@ class BankMatch(Base, TimestampMixin):
     bank_transaction = relationship("BankTransaction", back_populates="match")
     
     # Matched entity
-    matched_type = Column(Enum(MatchedEntityType), nullable=False)
+    matched_type = Column(Enum(MatchedEntityType, native_enum=False, length=50), nullable=False)
     matched_id = Column(Integer, nullable=False)  # ID in the matched table
     matched_reference = Column(String(100), nullable=True)  # e.g., Invoice number
     matched_name = Column(String(255), nullable=True)  # e.g., Vendor name

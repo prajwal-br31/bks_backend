@@ -30,10 +30,11 @@ beautifulsoup4==4.12.2
 # OCR
 pytesseract==0.3.10
 pdf2image==1.16.3
-Pillow==10.1.0
+Pillow>=10.4.0
 
 # Storage
 boto3==1.34.14
+azure-storage-blob==12.19.0
 
 # WebSocket
 websockets==12.0

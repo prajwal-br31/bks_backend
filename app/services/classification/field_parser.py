@@ -324,3 +324,6 @@ class InvoiceFieldParser:
         
         return "USD"  # Default
 
+
+
+

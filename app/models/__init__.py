@@ -21,6 +21,15 @@ from .bank_feed import (
     MatchedEntityType,
     FileStatus,
 )
+from .accounting import (
+    ChartOfAccount,
+    JournalEntry,
+    JournalLine,
+    ARInvoice,
+    ARReceipt,
+    APBill,
+    APPayment,
+)
 
 __all__ = [
     "Base",
@@ -43,4 +52,11 @@ __all__ = [
     "TransactionStatus",
     "MatchedEntityType",
     "FileStatus",
+    "ChartOfAccount",
+    "JournalEntry",
+    "JournalLine",
+    "ARInvoice",
+    "ARReceipt",
+    "APBill",
+    "APPayment",
 ]

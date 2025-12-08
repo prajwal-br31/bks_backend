@@ -216,3 +216,6 @@ class TesseractProvider(OCRProvider):
         
         return image
 
+
+
+

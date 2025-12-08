@@ -11,8 +11,35 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.config import get_settings
 from app.models.base import Base
-from app.models.email_document import (
-    EmailMessage, EmailDocument, Tag, DocumentTag, AuditLog, Notification
+
+# Import all models to ensure they're registered with Base.metadata
+# Import from models/__init__.py to avoid duplicate table definitions
+from app.models import (
+    # Document models
+    Document,
+    Tag,
+    AuditLog,
+    Notification,
+    # Bank feed models  
+    BankFile,
+    BankTransaction,
+    # Accounting models
+    ChartOfAccount,
+    JournalEntry,
+    JournalLine,
+    ARInvoice,
+    ARReceipt,
+    APBill,
+    APPayment,
+)
+
+# Import accounting enums for Alembic enum creation
+from app.domain.accounting.enums import (
+    AccountType,
+    SourceModule,
+    JournalStatus,
+    InvoiceStatus,
+    BillStatus,
 )
 
 config = context.config

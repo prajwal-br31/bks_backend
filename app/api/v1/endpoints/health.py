@@ -58,8 +58,8 @@ async def health_check(db: Session = Depends(get_db)):
     
     # S3 check
     try:
-        from app.services.storage import S3StorageService
-        storage = S3StorageService()
+        from app.services.storage import get_storage_service
+        storage = get_storage_service()
         is_healthy = await storage.health_check()
         s3_status = "healthy" if is_healthy else "unhealthy"
     except Exception as e:
@@ -104,4 +104,6 @@ def readiness_check(db: Session = Depends(get_db)):
 def liveness_check():
     """Kubernetes liveness probe."""
     return {"status": "alive"}
+
+
 

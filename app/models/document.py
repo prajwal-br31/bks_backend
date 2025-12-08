@@ -13,6 +13,7 @@ from sqlalchemy import (
     ForeignKey,
     Table,
 )
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import relationship
 from .base import Base, TimestampMixin
 
@@ -133,6 +134,10 @@ class Document(Base, TimestampMixin):
     
     # Foreign keys
     processing_job_id = Column(Integer, ForeignKey("email_processing_jobs.id"), nullable=True)
+    
+    # Accounting links
+    ar_invoice_id = Column(PGUUID(as_uuid=True), nullable=True)
+    ap_bill_id = Column(PGUUID(as_uuid=True), nullable=True)
 
     def __repr__(self):
         return f"<Document(id={self.id}, filename='{self.original_filename}', type={self.document_type})>"
@@ -238,4 +243,6 @@ class Notification(Base, TimestampMixin):
 
     def __repr__(self):
         return f"<Notification(id={self.id}, title='{self.title}', type={self.notification_type})>"
+
+
 

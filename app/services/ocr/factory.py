@@ -53,3 +53,6 @@ def get_ocr_provider(provider: Literal["tesseract", "google_vision", "aws_textra
     else:
         raise ValueError(f"Unknown OCR provider: {provider}")
 
+
+
+

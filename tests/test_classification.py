@@ -212,3 +212,6 @@ class TestIntegration:
         assert result.parsed_fields.total_amount == 2700.00
         assert result.parsed_fields.vendor_name is not None
 
+
+
+

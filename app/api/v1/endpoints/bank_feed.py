@@ -34,6 +34,11 @@ class TransactionResponse(BaseModel):
     check_number: Optional[str]
     bank_file_id: int
     matched_entity: Optional[dict]
+    ai_category: Optional[str] = None
+    ai_subcategory: Optional[str] = None
+    ai_confidence: Optional[float] = None
+    ai_ledger_hint: Optional[str] = None
+    classification_status: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -60,6 +65,8 @@ class UploadResponse(BaseModel):
     statement_end: Optional[str]
     errors: List[str]
     warnings: List[str]
+    classification_status: Optional[str] = None
+    classification_progress: Optional[int] = None
 
 
 class MatchRequest(BaseModel):
@@ -89,6 +96,9 @@ class SummaryResponse(BaseModel):
     cleared_count: int
     last_import: Optional[str]
     last_import_filename: Optional[str]
+    num_transactions_classified: Optional[int] = 0
+    num_transactions_pending: Optional[int] = 0
+    totals_by_ai_category: Optional[dict] = None
 
 
 class ReprocessResponse(BaseModel):
@@ -193,6 +203,8 @@ def get_transactions(
     amount_max: Optional[float] = None,
     search: Optional[str] = None,
     file_id: Optional[int] = None,
+    ai_category: Optional[str] = None,
+    classification_status: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -229,6 +241,8 @@ def get_transactions(
         amount_max=amount_max,
         search=search,
         file_id=file_id,
+        ai_category=ai_category,
+        classification_status=classification_status,
     )
     
     return TransactionListResponse(**result)
@@ -396,6 +410,8 @@ def list_files(
             "uploaded_by": f.uploaded_by,
             "created_at": f.created_at.isoformat() if f.created_at else None,
             "error_message": f.error_message,
+            "classification_status": f.classification_status.value if f.classification_status else None,
+            "classification_progress": f.classification_progress,
         })
     
     return {

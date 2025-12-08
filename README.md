@@ -14,10 +14,10 @@ A FastAPI-powered backend for the Bash Bookkeeping application featuring email i
 ## Tech Stack
 
 - **Framework**: FastAPI
-- **Database**: PostgreSQL + SQLAlchemy
-- **Task Queue**: Celery + Redis
-- **Storage**: S3-compatible (AWS S3, MinIO, R2)
-- **OCR**: Tesseract / Google Vision / AWS Textract
+- **Database**: PostgreSQL + SQLAlchemy (Azure PostgreSQL / Azure SQL)
+- **Task Queue**: Celery + Redis (Azure Cache for Redis)
+- **Storage**: Azure Blob Storage (or S3-compatible)
+- **OCR**: Tesseract / Google Vision / Azure AI Document Intelligence
 
 ## Quick Start
 
@@ -54,9 +54,11 @@ cp env.example .env
 ```env
 DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/bash
 REDIS_URL=redis://localhost:6379/0
-S3_ACCESS_KEY=your-key
-S3_SECRET_KEY=your-secret
-S3_BUCKET_NAME=your-bucket
+
+# Azure Blob Storage
+STORAGE_PROVIDER=azure_blob
+AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=...
+AZURE_STORAGE_CONTAINER_NAME=bookkeeping-documents
 ```
 
 ### 3. Start Infrastructure

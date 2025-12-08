@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
 
     # Database
-    database_url: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/bash"
+    database_url: str = "postgresql+psycopg2://postgres:9483@localhost:5432/bks"
     
     # OpenAI
     openai_api_key: str | None = None
@@ -48,8 +48,17 @@ class Settings(BaseSettings):
     aws_region: str = "us-east-1"
 
     # ============================================
-    # OBJECT STORAGE (S3-Compatible)
+    # OBJECT STORAGE
     # ============================================
+    storage_provider: Literal["azure_blob", "s3_compatible", "local"] = "azure_blob"
+    
+    # Azure Blob Storage
+    azure_storage_connection_string: str = "DefaultEndpointsProtocol=https;AccountName=bksdocs;AccountKey=US9G5dfmeaggNFo88jPvCaoC+MHj3+0yQZN7Fk4DON3IeJerEqZEEIQSwLf3nRNKApQG0ivMyrK5+AStG+EDJw==;EndpointSuffix=core.windows.net"
+    azure_storage_account_name: str = "bks"
+    azure_storage_account_key: str = "US9G5dfmeaggNFo88jPvCaoC+MHj3+0yQZN7Fk4DON3IeJerEqZEEIQSwLf3nRNKApQG0ivMyrK5+AStG+EDJw=="
+    azure_storage_container_name: str = "bksdocs"
+    
+    # S3-Compatible Storage
     s3_endpoint_url: str = "https://s3.amazonaws.com"
     s3_access_key: str = ""
     s3_secret_key: str = ""
@@ -84,6 +93,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # Ignore extra fields in .env file
 
     # Helper methods
     def get_whitelist_domains(self) -> list[str]:

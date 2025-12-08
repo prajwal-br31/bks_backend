@@ -261,3 +261,6 @@ class ContentExtractor:
         # Last resort: decode with errors replaced
         return content.decode("utf-8", errors="replace")
 
+
+
+

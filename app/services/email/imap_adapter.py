@@ -359,3 +359,6 @@ class IMAPAdapter(EmailAdapter):
             logger.error(f"Error extracting attachment: {e}")
             return None
 
+
+
+

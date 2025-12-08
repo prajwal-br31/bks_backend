@@ -7,7 +7,7 @@ celery_app = Celery(
     "bookkeeping",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
-    include=["app.tasks.email_tasks"],
+    include=["app.tasks.email_tasks", "app.tasks.bank_feed_tasks"],
 )
 
 # Celery configuration
@@ -22,6 +22,7 @@ celery_app.conf.update(
     # Task routing
     task_routes={
         "app.tasks.email_tasks.*": {"queue": "email_processing"},
+        "bank_feed.*": {"queue": "bank_feed"},
     },
     
     # Retry settings
@@ -54,4 +55,13 @@ celery_app.conf.beat_schedule = {
         "schedule": 86400.0,  # Daily
     },
 }
+
+
+# Simple ping task for testing Celery connectivity
+@celery_app.task(name="ping")
+def ping():
+    """Simple ping task to test Celery connectivity."""
+    return {"status": "pong", "message": "Celery is working"}
+
+
 

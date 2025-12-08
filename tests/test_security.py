@@ -110,3 +110,6 @@ class TestFileValidator:
         issues = validator._validate_filename("invoice.pdf.exe")
         assert len(issues) > 0
 
+
+
+

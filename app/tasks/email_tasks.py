@@ -146,7 +146,8 @@ def process_email(self, job_id: int):
                 content_extractor = ContentExtractor()
                 ocr_provider = get_ocr_provider()
                 classifier = DocumentClassifier(settings.classification_confidence_threshold)
-                storage = S3StorageService()
+                from app.services.storage import get_storage_service
+                storage = get_storage_service()
                 virus_scanner = VirusScanner()
                 file_validator = FileValidator()
                 
@@ -293,6 +294,80 @@ def process_email(self, job_id: int):
                             
                             db.add(document)
                             db.commit()
+                            
+                            # Create AR/AP records if applicable
+                            try:
+                                from app.services.accounting.document_to_accounting_service import (
+                                    create_ar_invoice_from_document,
+                                    create_ap_bill_from_document,
+                                )
+                                
+                                # Determine if we should create AR or AP
+                                should_create_ar = (
+                                    document.document_type == DocumentType.INVOICE
+                                    and document.destination == DocumentDestination.ACCOUNT_RECEIVABLE
+                                )
+                                should_create_ap = (
+                                    document.document_type == DocumentType.INVOICE
+                                    and document.destination == DocumentDestination.ACCOUNT_PAYABLE
+                                )
+                                
+                                if should_create_ar:
+                                    ar_invoice = create_ar_invoice_from_document(db, document.id)
+                                    logger.info(
+                                        f"Created AR Invoice {ar_invoice.id} from document {document.id}"
+                                    )
+                                    
+                                    # Create notification
+                                    try:
+                                        from app.models.document import Notification
+                                        notification = Notification(
+                                            title="AR Invoice Created",
+                                            message=f"AR Invoice {ar_invoice.invoice_number} created from document {document.original_filename}",
+                                            notification_type="accounting",
+                                            severity="success",
+                                            reference_type="ar_invoice",
+                                            reference_id=None,  # UUID stored in reference_code as string
+                                            reference_code=str(ar_invoice.id),
+                                            amount=str(ar_invoice.total_amount),
+                                            document_id=document.id,
+                                        )
+                                        db.add(notification)
+                                        db.commit()
+                                    except Exception as notif_error:
+                                        logger.warning(f"Failed to create notification: {notif_error}")
+                                
+                                elif should_create_ap:
+                                    ap_bill = create_ap_bill_from_document(db, document.id)
+                                    logger.info(
+                                        f"Created AP Bill {ap_bill.id} from document {document.id}"
+                                    )
+                                    
+                                    # Create notification
+                                    try:
+                                        from app.models.document import Notification
+                                        notification = Notification(
+                                            title="AP Bill Created",
+                                            message=f"AP Bill {ap_bill.bill_number} created from document {document.original_filename}",
+                                            notification_type="accounting",
+                                            severity="success",
+                                            reference_type="ap_bill",
+                                            reference_id=None,  # UUID stored in reference_code as string
+                                            reference_code=str(ap_bill.id),
+                                            amount=str(ap_bill.total_amount),
+                                            document_id=document.id,
+                                        )
+                                        db.add(notification)
+                                        db.commit()
+                                    except Exception as notif_error:
+                                        logger.warning(f"Failed to create notification: {notif_error}")
+                                
+                            except Exception as accounting_error:
+                                # Don't break email processing if accounting creation fails
+                                logger.error(
+                                    f"Failed to create AR/AP record from document {document.id}: {accounting_error}",
+                                    exc_info=True
+                                )
                             
                             documents_created += 1
                             
@@ -501,4 +576,6 @@ def create_notification(
     
     db.add(notification)
     db.commit()
+
+
 
